@@ -3,9 +3,9 @@
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace TrueSoft
+namespace TrueSoft.Analytics
 {
-    public static class LogCollector
+    public static class GameAnalytics
     {
         private static string endpoint = "https://collect-event-782622202301.asia-northeast3.run.app/collect";
         private static string _projectId = "DEFAULT_PROJECT_ID";
