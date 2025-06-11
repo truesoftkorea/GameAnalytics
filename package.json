@@ -1,8 +1,8 @@
 {
-  "name": "com.truesoft.log-collector",
+  "name": "com.truesoft.game-analytics",
   "version": "1.0.0",
-  "displayName": "Game Analytics Collector",
-  "description": "Serverless Game Analytics Collector",
+  "displayName": "Game Analytics",
+  "description": "Game Analytics Collector",
   "unity": "2020.3",
   "author": {
     "name": "Truesoft"

@@ -1,6 +1,6 @@
 {
   "name": "Truesoft.GameAnalytics",
-  "rootNamespace": "Truesoft.Analytics",
+  "rootNamespace": "Truesoft",
   "references": [],
   "includePlatforms": [],
   "excludePlatforms": [],
