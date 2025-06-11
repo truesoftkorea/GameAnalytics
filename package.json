@@ -1,5 +1,5 @@
 {
-  "name": "com.truesoft.logCollector",
+  "name": "com.truesoft.log-collector",
   "version": "1.0.0",
   "displayName": "Game Analytics Collector",
   "description": "Serverless Game Analytics Collector",
