@@ -1,0 +1,10 @@
+{
+  "name": "com.truesoft.analytics",
+  "version": "1.0.0",
+  "displayName": "Truesoft Analytics",
+  "description": "Analytics Collector",
+  "unity": "2020.3",
+  "author": {
+    "name": "Truesoft"
+  }
+}
