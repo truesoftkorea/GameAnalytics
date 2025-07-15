@@ -182,7 +182,7 @@ DB에 유저가 접속 종료했음을 알리는 로그를 전송합니다.
 
 ### 1. 게임 실행  
 
-`GameEvent.Configure("https://***", true);`
+`GameEvent.Configure("https://***", true);`  
 `GameEvent.InitInstallInfo(InstallSource.GooglePlay, "adCam");`
 
 ### 2. 서버 연결
