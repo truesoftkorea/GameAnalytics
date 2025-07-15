@@ -11,6 +11,8 @@ namespace Truesoft.Analytics
     {
         private static EventStorage _instance;
         private static readonly Queue<EventWrapper> MemoryQueue = new();
+        private static readonly HashSet<string> AlreadyLoggedErrors = new();
+        
         private const int MaxStoredEvents = 500;
 
         private static bool _isSending;
@@ -153,8 +155,7 @@ namespace Truesoft.Analytics
 
             if (request.result == UnityWebRequest.Result.Success)
             {
-                if (env.eventPath == Path.User)
-                    GameEvent.MemoryKey = GameEvent.UserID;
+                if (env.eventPath == Path.User) GameEvent.MemoryKey = GameEvent.UserID;
 
                 MemoryQueue.Dequeue();
                 _updateTime = UpdateMaxTime;
@@ -165,12 +166,17 @@ namespace Truesoft.Analytics
                 if (env.isSafeData || env.isCritical)
                 {
                     wrapper.retryCount++;
-
+                    
                     if (wrapper.retryCount >= 3)
                     {
+                        string errorCode = request.responseCode.ToString();
+                        string errorText = request.downloadHandler.text;
+                        
+                        _instance.StartCoroutine(SendFailureLog(wrapper, errorCode, errorText));
+                        
                         if (env.isCritical)
                         {
-                            Debug.LogWarning("[EventStorage] Critical event failed 3 times. Moving to back of queue.");
+                            if (TestLog) Debug.LogWarning("[EventStorage] Critical event failed 3 times. Moving to back of queue.");
                             MemoryQueue.Dequeue();
                             MemoryQueue.Enqueue(wrapper); // 뒤로 밀기
                         }
@@ -192,6 +198,52 @@ namespace Truesoft.Analytics
                 SaveToDisk();
             }
         }
+        
+        private IEnumerator SendFailureLog(EventWrapper wrapper, string responseCode, string errorText)
+        {
+            // 1. 중복 체크 키 생성
+            string logKey = $"{GameEvent.UserID}_{wrapper.eventData.eventPath}_{responseCode}_{errorText}".GetHashCode().ToString();
+
+            if (AlreadyLoggedErrors.Contains(logKey))
+            {
+                if (TestLog) Debug.Log($"[EventStorage] Duplicate failure log suppressed: {logKey}");
+                yield break;
+            }
+
+            AlreadyLoggedErrors.Add(logKey);
+
+            // 2. 전송 payload 구성
+            var body = new FailureLogPayload
+            {
+                user_id = GameEvent.UserID,
+                seeeion_id = GameEvent.SessionID,
+                event_path = wrapper.eventData.eventPath,
+                payload_json = wrapper.eventData.payloadJson,
+                error_message = $"{responseCode} : {errorText}",
+                event_time = GameEvent.TimeToString(GameEvent.CurrentTime())
+            };
+
+            string json = JsonUtility.ToJson(body);
+            byte[] raw = Encoding.UTF8.GetBytes(json);
+
+            // 3. Cloud Run 전송
+            using var request = new UnityWebRequest($"{CloudRunBaseUrl}/failure-log", "POST")
+            {
+                uploadHandler = new UploadHandlerRaw(raw),
+                downloadHandler = new DownloadHandlerBuffer()
+            };
+            request.SetRequestHeader("Content-Type", "application/json");
+
+            yield return request.SendWebRequest();
+
+            if (TestLog)
+            {
+                if (request.result == UnityWebRequest.Result.Success)
+                    Debug.Log("[EventStorage] Failure log sent to Cloud Run.");
+                else
+                    Debug.LogWarning($"[EventStorage] Failed to send failure log: {request.responseCode} {request.downloadHandler.text}");
+            }
+        }
 
         public static void CloseFlow(Action onComplete)
         {
@@ -204,7 +256,7 @@ namespace Truesoft.Analytics
             IsEnd = true;
             onComplete?.Invoke();
         }
-
+        
         [Serializable]
         public class JsonWrapper
         {
@@ -316,6 +368,17 @@ namespace Truesoft.Analytics
             public string user_id;
             public string event_time;
             public string ad_id;
+        }
+        
+        [Serializable]
+        public class FailureLogPayload
+        {
+            public string user_id;
+            public string seeeion_id;
+            public string event_path;
+            public string payload_json;
+            public string error_message;
+            public string event_time; // ISO8601 UTC
         }
     }
 }
