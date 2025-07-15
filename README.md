@@ -6,12 +6,17 @@ BigQuery 기반의 분석 및 Looker Studio 시각화를 지원하는 경량 SDK
 ## 설치 방법
 
 1. Unity Package Manager에서 다음 Git URL을 사용해 설치하세요.
+   `https://github.com/truesoftkorea/GameAnalytics.git`
 
-   https://github.com/truesoftkorea/GameAnalytics.git
 
 2. 또는 `Packages/manifest.json`에 아래와 같이 직접 추가할 수 있습니다.
+   `"com.truesoft.analytics": "https://github.com/truesoftkorea/GameAnalytics.git"`
 
-   "com.truesoft.analytics": "https://github.com/truesoftkorea/GameAnalytics.git"
+
+3. 특정 버전을 설치하려는 경우  
+`https://github.com/truesoftkorea/GameAnalytics.git#1.0.0`  
+와 같이 `#버전` 을 추가하여 설치할 수 있습니다.  
+사용 가능한 버전은 CHANGELOG를 확인하세요.
 
 ## EventStorage 오브젝트 등록
 
