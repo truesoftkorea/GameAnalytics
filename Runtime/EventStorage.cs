@@ -1,11 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Android;
 using UnityEngine.Networking;
 
 namespace Truesoft.Analytics
@@ -13,36 +10,18 @@ namespace Truesoft.Analytics
     public class EventStorage : MonoBehaviour
     {
         private static EventStorage _instance;
-        
-        //전송 예약 큐
-        private static readonly Queue<string> MemoryQueue = new();
-        
-        //최대 저장 갯수
+        private static readonly Queue<EventWrapper> MemoryQueue = new();
         private const int MaxStoredEvents = 500;
-        
-        //전송 상태
-        private static bool _isSending;
-        
-        //세션 새로고침
-        private static float _updateTime;
-        private const float UpdateMaxTime = 600;
 
-        //전송 재시도
-        private static int _failCount;
-        
-        //이벤트 수집 중단
-        public static bool IsEnd;
-        
-        //세션 시작
+        private static bool _isSending;
         private static bool _isSession;
-        
-        //테스트 모드
+        public static bool IsEnd;
         public static bool TestLog;
-        
-        //클라우드 URL
         public static string CloudRunBaseUrl;
 
-        
+        private static float _updateTime;
+        private const float UpdateMaxTime = 600f;
+
         private void Awake()
         {
             if (_instance != null)
@@ -50,7 +29,7 @@ namespace Truesoft.Analytics
                 Destroy(_instance);
                 return;
             }
-            
+
             _instance = this;
             _updateTime = UpdateMaxTime;
             DontDestroyOnLoad(gameObject);
@@ -59,121 +38,101 @@ namespace Truesoft.Analytics
         public static void StartStorage()
         {
             _isSession = true;
-            
             _instance.LoadFromDisk();
             _instance.TrySend();
         }
 
         private void Update()
         {
-            if (!IsEnd || _isSession)
+            if (!IsEnd && _isSession)
             {
                 _updateTime -= Time.deltaTime;
                 if (_updateTime <= 0 && !_isSending)
                 {
                     _updateTime = UpdateMaxTime;
-                    var payload = new UpdatePayload()
+                    var payload = new UpdatePayload
                     {
                         session_id = GameEvent.SessionID,
                         event_time = GameEvent.TimeToString(GameEvent.CurrentTime())
                     };
-                    
                     Enqueue(JsonUtility.ToJson(payload), Path.Update, false);
                 }
             }
         }
 
-        //전송 예약
-        public static void Enqueue(string data, string path, bool isSafe = true)
+        public static void Enqueue(string data, string path, bool isSafe = true, bool isCritical = false)
         {
             if (IsEnd || !_isSession) return;
-            
-            var wrapper = new EventData(path, data, isSafe);
-            string json = JsonUtility.ToJson(wrapper);
-            
-            MemoryQueue.Enqueue(json);
-            
+
+            var wrapper = new EventWrapper(new EventData(path, data, isSafe, isCritical));
+            MemoryQueue.Enqueue(wrapper);
             SaveToDisk();
             _instance.TrySend();
         }
 
-        //백업
         private static void SaveToDisk()
         {
-            var storedList = new List<string>(MemoryQueue);
-            if (storedList.Count > MaxStoredEvents) storedList.RemoveRange(0, storedList.Count - MaxStoredEvents);
+            var list = new List<EventWrapper>(MemoryQueue);
+            if (list.Count > MaxStoredEvents)
+                list.RemoveRange(0, list.Count - MaxStoredEvents);
 
-            GameEvent.QueueData = JsonUtility.ToJson(new JsonWrapper(GameEvent.UserID, storedList));
+            GameEvent.QueueData = JsonUtility.ToJson(new JsonWrapper(GameEvent.UserID, list));
         }
 
-        //백업 불러오기
-        public void LoadFromDisk()
+        private void LoadFromDisk()
         {
-            if (GameEvent.QueueData != null)
+            var raw = GameEvent.QueueData;
+            if (!string.IsNullOrEmpty(raw))
             {
-                var wrapper = JsonUtility.FromJson<JsonWrapper>(GameEvent.QueueData);
-
+                var wrapper = JsonUtility.FromJson<JsonWrapper>(raw);
                 GameEvent.MemoryKey = wrapper.userId;
-                foreach (var item in wrapper.items) MemoryQueue.Enqueue(item);
+                foreach (var item in wrapper.items)
+                    MemoryQueue.Enqueue(item);
             }
         }
 
-        //전송 시도
         private void TrySend()
         {
             if (IsEnd) return;
-            
             StartCoroutine(SendLoop());
         }
 
-        //전송 시작
         private IEnumerator SendLoop()
         {
-            if (!_isSending)
+            if (_isSending) yield break;
+
+            _isSending = true;
+            while (!IsEnd && MemoryQueue.Count > 0)
             {
-                _isSending = true;
-                while (!IsEnd && MemoryQueue.Count > 0)
-                {
-                    _failCount = 0;
-                    yield return StartCoroutine(QueueToServer());
-                }
-                _isSending = false;
+                yield return StartCoroutine(QueueToServer());
             }
+            _isSending = false;
         }
 
-        //전송
         private IEnumerator QueueToServer()
         {
-            UnityWebRequest request;
-            EventData env;
-            
+            var wrapper = MemoryQueue.Peek();
+            var env = wrapper.eventData;
+
+            UnityWebRequest request = null;
+
             try
             {
-                if (CloudRunBaseUrl == null)
-                {
-                    Debug.LogError("CloudRunBaseUrl을 지정하지 않았습니다.");
-                    yield break;
-                }
-                
-                string json = MemoryQueue.Peek();
-                env = JsonUtility.FromJson<EventData>(json);
-
                 string url = $"{CloudRunBaseUrl}{env.eventPath}";
                 byte[] bodyRaw = Encoding.UTF8.GetBytes(env.payloadJson);
 
-                request = new UnityWebRequest(url, "POST");
-                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-                request.downloadHandler = new DownloadHandlerBuffer();
+                request = new UnityWebRequest(url, "POST")
+                {
+                    uploadHandler = new UploadHandlerRaw(bodyRaw),
+                    downloadHandler = new DownloadHandlerBuffer()
+                };
                 request.SetRequestHeader("Content-Type", "application/json");
             }
             catch (Exception e)
             {
                 if (TestLog) Debug.LogError(e);
-                
-                _updateTime = UpdateMaxTime;
-                MemoryQueue.Dequeue();
+                MemoryQueue.Dequeue(); // malformed → 제거
                 SaveToDisk();
-
                 yield break;
             }
 
@@ -192,29 +151,44 @@ namespace Truesoft.Analytics
                 }
             }
 
-            if (request.result != UnityWebRequest.Result.Success)
+            if (request.result == UnityWebRequest.Result.Success)
             {
-                if (env.isSafeData)
-                {
-                    _failCount++;
-                    if (_failCount > 3)
-                    {
-                        IsEnd = true;
-                    }
-                    else
-                    {
-                        yield return new WaitForSeconds(2f);
+                if (env.eventPath == Path.User)
+                    GameEvent.MemoryKey = GameEvent.UserID;
 
-                        yield return StartCoroutine(QueueToServer());
-                    }
-                }
+                MemoryQueue.Dequeue();
+                _updateTime = UpdateMaxTime;
+                SaveToDisk();
             }
             else
             {
-                if (env.eventPath == Path.User) GameEvent.MemoryKey = GameEvent.UserID;
-                
-                _updateTime = UpdateMaxTime;
-                MemoryQueue.Dequeue();
+                if (env.isSafeData || env.isCritical)
+                {
+                    wrapper.retryCount++;
+
+                    if (wrapper.retryCount >= 3)
+                    {
+                        if (env.isCritical)
+                        {
+                            Debug.LogWarning("[EventStorage] Critical event failed 3 times. Moving to back of queue.");
+                            MemoryQueue.Dequeue();
+                            MemoryQueue.Enqueue(wrapper); // 뒤로 밀기
+                        }
+                        else
+                        {
+                            MemoryQueue.Dequeue(); // 폐기
+                        }
+                    }
+                    else
+                    {
+                        yield return new WaitForSeconds(1f); // 재시도 대기
+                    }
+                }
+                else
+                {
+                    MemoryQueue.Dequeue(); // 덜 중요한 이벤트는 즉시 폐기
+                }
+
                 SaveToDisk();
             }
         }
@@ -227,42 +201,54 @@ namespace Truesoft.Analytics
         private static IEnumerator CloseFlow_Cor(Action onComplete)
         {
             yield return new WaitWhile(() => _isSending);
-
             IsEnd = true;
             onComplete?.Invoke();
         }
 
         [Serializable]
-        private class JsonWrapper
+        public class JsonWrapper
         {
-            //등록한 유저ID
             public string userId;
-            
-            //이벤트 큐
-            public List<string> items;
-            
-            public JsonWrapper(string user, List<string> l)
+            public List<EventWrapper> items;
+
+            public JsonWrapper(string userId, List<EventWrapper> items)
             {
-                userId = user; 
-                items = l; 
+                this.userId = userId;
+                this.items = items;
+            }
+        }
+
+        [Serializable]
+        public class EventWrapper
+        {
+            public EventData eventData;
+            public int retryCount;
+
+            public EventWrapper(EventData data)
+            {
+                eventData = data;
+                retryCount = 0;
             }
         }
 
         [Serializable]
         public class EventData
         {
-            public string eventPath; // 예: "user", "event", "session"
-            public string payloadJson; // JsonUtility.ToJson()으로 만든 JSON 문자열
-            public bool isSafeData; //저장 여부
+            public string eventPath;
+            public string payloadJson;
+            public bool isSafeData;
+            public bool isCritical; // ✅ 추가된 중요도 구분
 
-            public EventData(string path, string json, bool save = true)
+            public EventData(string path, string json, bool save = true, bool critical = false)
             {
                 eventPath = path;
                 payloadJson = json;
                 isSafeData = save;
+                isCritical = critical;
             }
         }
-        
+
+        // Payload 타입 정의들
         [Serializable]
         public class UserPayload
         {
