@@ -424,6 +424,7 @@ namespace Truesoft.Analytics
         public const string Ad = "/collect/ad";
         public const string Event = "/collect/event";
         public const string Update = "/collect/update";
+        public const string FailureLog = "/failure_log";
     }
 
     [Serializable]

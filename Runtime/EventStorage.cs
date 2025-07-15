@@ -140,49 +140,42 @@ namespace Truesoft.Analytics
 
             yield return request.SendWebRequest();
 
-            if (TestLog)
-            {
-                if (request.result != UnityWebRequest.Result.Success)
-                {
-                    Debug.LogError($"{env.eventPath} : {request.result}");
-                    Debug.LogError(env.payloadJson);
-                }
-                else
-                {
-                    Debug.Log($"{env.eventPath} : {request.result}");
-                }
-            }
-
             if (request.result == UnityWebRequest.Result.Success)
             {
                 if (env.eventPath == Path.User) GameEvent.MemoryKey = GameEvent.UserID;
-
+                
+                if (TestLog) Debug.Log($"{env.eventPath} : {request.result}");
+                
                 MemoryQueue.Dequeue();
                 _updateTime = UpdateMaxTime;
                 SaveToDisk();
             }
             else
             {
-                if (env.isSafeData || env.isCritical)
+                if (TestLog)
+                {
+                    Debug.LogWarning($"[EventStorage] Failed {wrapper.retryCount} → {env.eventPath}");
+                    Debug.LogWarning(env.payloadJson);
+                }
+
+                if (env.isSafeData)
                 {
                     wrapper.retryCount++;
-                    
+
                     if (wrapper.retryCount >= 3)
                     {
-                        string errorCode = request.responseCode.ToString();
-                        string errorText = request.downloadHandler.text;
-                        
-                        _instance.StartCoroutine(SendFailureLog(wrapper, errorCode, errorText));
-                        
+                        _instance.StartCoroutine(SendFailureLog(wrapper, request.responseCode.ToString(), request.downloadHandler.text));
+
                         if (env.isCritical)
                         {
-                            if (TestLog) Debug.LogWarning("[EventStorage] Critical event failed 3 times. Moving to back of queue.");
+                            env.isCritical = false;
+                            wrapper.retryCount = 0;
                             MemoryQueue.Dequeue();
-                            MemoryQueue.Enqueue(wrapper); // 뒤로 밀기
+                            MemoryQueue.Enqueue(wrapper); // 다시 뒤로 보내서 재시도
                         }
                         else
                         {
-                            MemoryQueue.Dequeue(); // 폐기
+                            MemoryQueue.Dequeue(); // 중요하지 않은 이벤트는 폐기
                         }
                     }
                     else
@@ -192,27 +185,21 @@ namespace Truesoft.Analytics
                 }
                 else
                 {
-                    MemoryQueue.Dequeue(); // 덜 중요한 이벤트는 즉시 폐기
+                    MemoryQueue.Dequeue(); // 중요하지 않은 이벤트는 폐기
                 }
 
                 SaveToDisk();
             }
         }
-        
+
         private IEnumerator SendFailureLog(EventWrapper wrapper, string responseCode, string errorText)
         {
-            // 1. 중복 체크 키 생성
             string logKey = $"{GameEvent.UserID}_{wrapper.eventData.eventPath}_{responseCode}_{errorText}".GetHashCode().ToString();
 
-            if (AlreadyLoggedErrors.Contains(logKey))
-            {
-                if (TestLog) Debug.Log($"[EventStorage] Duplicate failure log suppressed: {logKey}");
-                yield break;
-            }
+            if (AlreadyLoggedErrors.Contains(logKey)) yield break;
 
             AlreadyLoggedErrors.Add(logKey);
 
-            // 2. 전송 payload 구성
             var body = new FailureLogPayload
             {
                 user_id = GameEvent.UserID,
@@ -223,11 +210,10 @@ namespace Truesoft.Analytics
                 event_time = GameEvent.TimeToString(GameEvent.CurrentTime())
             };
 
-            string json = JsonUtility.ToJson(body);
+            var json = JsonUtility.ToJson(body);
             byte[] raw = Encoding.UTF8.GetBytes(json);
 
-            // 3. Cloud Run 전송
-            using var request = new UnityWebRequest($"{CloudRunBaseUrl}/failure-log", "POST")
+            using var request = new UnityWebRequest($"{CloudRunBaseUrl}/{Path.FailureLog}", "POST")
             {
                 uploadHandler = new UploadHandlerRaw(raw),
                 downloadHandler = new DownloadHandlerBuffer()
@@ -235,14 +221,6 @@ namespace Truesoft.Analytics
             request.SetRequestHeader("Content-Type", "application/json");
 
             yield return request.SendWebRequest();
-
-            if (TestLog)
-            {
-                if (request.result == UnityWebRequest.Result.Success)
-                    Debug.Log("[EventStorage] Failure log sent to Cloud Run.");
-                else
-                    Debug.LogWarning($"[EventStorage] Failed to send failure log: {request.responseCode} {request.downloadHandler.text}");
-            }
         }
 
         public static void CloseFlow(Action onComplete)
@@ -256,7 +234,7 @@ namespace Truesoft.Analytics
             IsEnd = true;
             onComplete?.Invoke();
         }
-        
+
         [Serializable]
         public class JsonWrapper
         {
@@ -289,7 +267,7 @@ namespace Truesoft.Analytics
             public string eventPath;
             public string payloadJson;
             public bool isSafeData;
-            public bool isCritical; // ✅ 추가된 중요도 구분
+            public bool isCritical;
 
             public EventData(string path, string json, bool save = true, bool critical = false)
             {
@@ -299,8 +277,7 @@ namespace Truesoft.Analytics
                 isCritical = critical;
             }
         }
-
-        // Payload 타입 정의들
+        
         [Serializable]
         public class UserPayload
         {
@@ -338,7 +315,7 @@ namespace Truesoft.Analytics
             public string session_id;
             public string event_time;
         }
-
+        
         [Serializable]
         public class EventPayload
         {
@@ -378,7 +355,7 @@ namespace Truesoft.Analytics
             public string event_path;
             public string payload_json;
             public string error_message;
-            public string event_time; // ISO8601 UTC
+            public string event_time;
         }
     }
 }
