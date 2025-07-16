@@ -202,7 +202,7 @@ namespace Truesoft.Analytics
                 event_time = TimeToString(closeAt)
             };
             
-            EventStorage.Enqueue(JsonUtility.ToJson(data), Path.CloseSession);
+            EventStorage.Enqueue(JsonUtility.ToJson(data), Path.CloseSession, false);
             EventStorage.CloseFlow(onComplete);
         }
         
@@ -266,7 +266,7 @@ namespace Truesoft.Analytics
                 event_time = TimeToString(eventTime)
             };
             
-            EventStorage.Enqueue(JsonUtility.ToJson(data), Path.Ad);
+            EventStorage.Enqueue(JsonUtility.ToJson(data), Path.Ad, false);
         } 
         
         //튜토리얼 이벤트
@@ -295,7 +295,7 @@ namespace Truesoft.Analytics
                 event_time = TimeToString(eventTime)
             };
             
-            EventStorage.Enqueue(JsonUtility.ToJson(data), Path.Event);
+            EventStorage.Enqueue(JsonUtility.ToJson(data), Path.Event, false);
         }
         
         private static string GetID(string projectId, string playerId, int hashLength = 8)

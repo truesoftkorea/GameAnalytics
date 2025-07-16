@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
+using Random = UnityEngine.Random;
 
 namespace Truesoft.Analytics
 {
@@ -57,12 +58,12 @@ namespace Truesoft.Analytics
                         session_id = GameEvent.SessionID,
                         event_time = GameEvent.TimeToString(GameEvent.CurrentTime())
                     };
-                    Enqueue(JsonUtility.ToJson(payload), Path.Update, false);
+                    Enqueue(JsonUtility.ToJson(payload), Path.Update, false, false);
                 }
             }
         }
 
-        public static void Enqueue(string data, string path, bool isSafe = true, bool isCritical = false)
+        public static void Enqueue(string data, string path, bool isCritical = true, bool isSafe = true)
         {
             if (IsEnd || !_isSession) return;
 
