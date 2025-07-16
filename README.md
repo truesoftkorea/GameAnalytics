@@ -68,6 +68,8 @@ BigQuery 기반의 분석 및 Looker Studio 시각화를 지원하는 경량 SDK
 로그를 전송할 때 현재 시각을 동기화하기 위해 프로젝트에서 사용하는 현재 시각이 필요합니다.  
 * 연동하지 않을 경우 자동으로 `DateTime.UtcNow`를 사용합니다.  
 * 별도의 게임서버가 있는 경우 반드시 연동이 필요합니다.
+* 현재 시각에 시간대 정보를 추가하려면 UTC 시각(한국 시각X)에  
+`DateTime.SpecifyKind(time, DateTimeKind.Utc);`를 적용하면 됩니다.
 
 `GameEvent.SetUpdateTime(() => TimeManager.serverTime);`
 

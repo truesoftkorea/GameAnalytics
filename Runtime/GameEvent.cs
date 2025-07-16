@@ -341,7 +341,12 @@ namespace Truesoft.Analytics
         public static string TimeToString(DateTime time)
         {
             //시간대 임시 보정
-            if (time.Kind == DateTimeKind.Unspecified) time = time.AddHours(-9);
+            if (time.Kind == DateTimeKind.Unspecified)
+            {
+                if (EventStorage.TestLog) Debug.LogWarning("현재 시각의 시간대 정보가 지정되지 않았습니다.\nSetUpdateTime()에서 올바른 시각을 연동해 주세요.");
+
+                time = time.AddHours(-9);
+            }
             
             return time.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
         }
@@ -349,7 +354,12 @@ namespace Truesoft.Analytics
         private static string TimeToID(DateTime time)
         {
             //시간대 임시 보정
-            if (time.Kind == DateTimeKind.Unspecified) time = time.AddHours(-9);
+            if (time.Kind == DateTimeKind.Unspecified)
+            {
+                if (EventStorage.TestLog) Debug.LogWarning("현재 시각의 시간대 정보가 지정되지 않았습니다.\nSetUpdateTime()에서 올바른 시각을 연동해 주세요.");
+
+                time = time.AddHours(-9);
+            }
 
             return time.ToUniversalTime().ToString("yyMMddHHmmssff");
         }
