@@ -340,11 +340,17 @@ namespace Truesoft.Analytics
 
         public static string TimeToString(DateTime time)
         {
+            //시간대 임시 보정
+            if (time.Kind == DateTimeKind.Unspecified) time = time.AddHours(-9);
+            
             return time.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
         }
 
         private static string TimeToID(DateTime time)
         {
+            //시간대 임시 보정
+            if (time.Kind == DateTimeKind.Unspecified) time = time.AddHours(-9);
+
             return time.ToUniversalTime().ToString("yyMMddHHmmssff");
         }
 
