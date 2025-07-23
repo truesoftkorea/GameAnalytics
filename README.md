@@ -38,10 +38,9 @@ BigQuery 기반의 분석 및 Looker Studio 시각화를 지원하는 경량 SDK
 ## 설치 정보 설정
 
 앱 실행 시 설치 경로 및 광고 유입 정보를 설정합니다.
+* 자동으로 플랫폼별로 구분하여 처리합니다.
 
-- Android : `GameEvent.InitPlayStoreInfo();`
-- iOS : `GameEvent.InitAppStoreInfo();`
-- 기타 수동 설정 : `GameEvent.InitInstallInfo("play_store", "test_campaign");`
+`GameEvent.InitInstallInfo();`
 
 ## 이벤트 수집 중단
 
@@ -55,12 +54,11 @@ BigQuery 기반의 분석 및 Looker Studio 시각화를 지원하는 경량 SDK
 
 로그인 완료 시 이후 전송할 정보를 설정합니다.
 
-`GameEvent.InitGame("mygame_live", "user_001", 101, Platform.Android, Server.Korea);`
+`GameEvent.InitGame("mygame_live", "user_001", 101, Server.Korea);`
 
 - projectId : 고유 프로젝트 이름 (테스트 : `GameEvent.TestProject`)
 - userId : 유저 ID (게임 서버에서 할당 받은 고유ID)
 - appVersion : 앱 빌드 버전 (업데이트마다 증가)
-- platform : (접속 플랫폼, Platform 클래스 사용)
 - server : (글로벌 게임인 경우 유저 그룹 구분, Server 클래스 사용)
 
 ## 현재 시각 연동
@@ -126,9 +124,10 @@ DB에 유저가 접속 종료했음을 알리는 로그를 전송합니다.
 
 상품 결제를 성공한 경우 DB에 구매 데이터를 전송합니다.
 
-`GameEvent.SendPaymentEvent("starter_pack_01");`
+`GameEvent.SendPaymentEvent("starter_pack_01", receipt);`
 
-- productName : 상품 ID (한글 상품 이름은 DB의 상품 카탈로그에 별도 등록)
+- productName : 상품 이름 (한글 상품 이름은 DB의 상품 카탈로그에 별도 등록)
+- receipt : 유니티 결제 영수증 (e.purchasedProduct.receipt)
 
 ## 광고 이벤트 전송
 
@@ -184,7 +183,7 @@ DB에 유저가 접속 종료했음을 알리는 로그를 전송합니다.
 ### 1. 게임 실행  
 
 `GameEvent.Configure("https://***", true);`  
-`GameEvent.InitInstallInfo(InstallSource.GooglePlay, "adCam");`
+`GameEvent.InitInstallInfo();`
 
 ### 2. 서버 연결
 
@@ -193,13 +192,13 @@ DB에 유저가 접속 종료했음을 알리는 로그를 전송합니다.
 
 ### 3. 로그인
 
-`GameEvent.InitGame(GameEvent.TestProject, "testUser0", 1, Platform.Android, Server.Korea);`  
+`GameEvent.InitGame(GameEvent.TestProject, "testUser0", 1, Server.Korea);`  
 `GameEvent.StartSession();`
 
 ### 4. 게임 진행
 
 `GameEvent.SendTutorialEvent(1);`  
-`GameEvent.SendPaymentEvent("gem_110");`  
+`GameEvent.SendPaymentEvent("gem_110", receipt);`  
 `GameEvent.SendAdEvent("test_ad");`
 
 ### 5. 게임 종료 또는 탈퇴

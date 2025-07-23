@@ -10,7 +10,6 @@ namespace Truesoft.Analytics
     {
         public const string QueueDataKey = "Truesoft.Analytics.QueueData";
         public const string CampaignKey = "Truesoft.Analytics.CampaignKey";
-        public const string InstallSourceKey = "Truesoft.Analytics.InstallSourceKey";
 
         //저장된 유저 데이터 KEY
         public static string MemoryKey;
@@ -20,12 +19,10 @@ namespace Truesoft.Analytics
         public static string UserID;
         public static string SessionID;
         public static string Version;
-        public static string Platform;
+        public static string RunPlatform;
+        public static string InstallStore;
         public static string Server;
         
-        private static string _adCampaign;
-        private static string _installSource;
-
         public static Func<DateTime> CurrentTime = () => DateTime.UtcNow;
         public static string QueueData
         {
@@ -75,23 +72,86 @@ namespace Truesoft.Analytics
         }
 
         //플레이 스토어 전용 설치정보 설정(필수)
-        public static void InitPlayStoreInfo()
+        public static void InitInstallInfo()
         {
-            //Install Referrer 호출
-            PlayInstallReferrer.GetInstallReferrerInfo(details =>
-            {
-                string referrerString = details.InstallReferrer; // ex: utm_source=google&utm_campaign=UA01
-                Dictionary<string, string> queryParams = ParseQueryString(referrerString);
+#if UNITY_ANDROID
+            InitAndroidInfo();
+#elif UNITY_IOS
+            InitIOSInfo();
+#elif UNITY_STANDALONE_WIN
+            InitWindowsInfo();
+#endif
+        }
 
-                var adCampaign = queryParams.ContainsKey("utm_campaign") ? queryParams["utm_campaign"] : null;
+        private static void InitAndroidInfo()
+        {
+            RunPlatform = Platform.Android;
+            InstallStore = Store.None;
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+            try
+            {
+                using (var buildVersion = new AndroidJavaClass("android.os.Build$VERSION"))
+                {
+                    int sdkInt = buildVersion.GetStatic<int>("SDK_INT");
+
+                    using (var unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                    using (var activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
+                    using (var packageManager = activity.Call<AndroidJavaObject>("getPackageManager"))
+                    {
+                        string installer;
+                        var packageName = activity.Call<string>("getPackageName");
+                        if (sdkInt >= 30)
+                        {
+                            // Android 11 이상: getInstallSourceInfo()
+                            using var installInfo = packageManager.Call<AndroidJavaObject>("getInstallSourceInfo", packageName);
+                            installer = installInfo.Call<string>("getInstallingPackageName");
+                        }
+                        else
+                        {
+                            // Android 10 이하: getInstallerPackageName()
+                            installer = packageManager.Call<string>("getInstallerPackageName", packageName);
+                        }
+                        
+                        switch (installer)
+                        {
+                            case "com.android.vending":
+                                InstallStore = Store.GooglePlay;
+                                break;
+                            case "com.samsung.android.app.seller":
+                                InstallStore = Store.GalaxyStore;
+                                break;
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("GetInstallSource() failed: " + e.Message);
+            }
+#endif
+            
+            //Install Referrer 호출
+            if (InstallStore == Store.GooglePlay)
+            {
+                PlayInstallReferrer.GetInstallReferrerInfo(details =>
+                {
+                    string referrerString = details.InstallReferrer; // ex: utm_source=google&utm_campaign=UA01
+                    Dictionary<string, string> queryParams = ParseQueryString(referrerString);
+
+                    var adCampaign = queryParams.ContainsKey("utm_campaign") ? queryParams["utm_campaign"] : null;
                 
-                InitInstallInfo(InstallSource.GooglePlay, adCampaign);
-            });
+                    InitAdInfo(adCampaign);
+                });
+            }
         }
 
         //앱스토어 전용 설치정보 설정(필수)
-        public static void InitAppStoreInfo()
+        private static void InitIOSInfo()
         {
+            RunPlatform = Platform.Android;
+            InstallStore = Store.AppStore;
+
             if (!string.IsNullOrEmpty(Application.absoluteURL))
             {
                 Uri uri = new Uri(Application.absoluteURL);
@@ -99,17 +159,22 @@ namespace Truesoft.Analytics
 
                 var adCampaign = queryParams.ContainsKey("utm_campaign") ? queryParams["utm_campaign"] : null;
 
-                InitInstallInfo(InstallSource.AppStore, adCampaign);
+                InitAdInfo(adCampaign);
             }
+        }
+
+        //윈도우 전용 설치정보 설정(임시)
+        private static void InitWindowsInfo()
+        {
+            RunPlatform = Platform.Windows;
+            InstallStore = Store.Steam;
         }
         
         //직접 설치정보 설정(필수)
-        //installSource : 설치 경로
         //adCampaign : 광고 캠페인
-        public static void InitInstallInfo(string installSource, string adCampaign)
+        private static void InitAdInfo(string adCampaign = null)
         {
             PlayerPrefs.SetString(CampaignKey, adCampaign);
-            PlayerPrefs.SetString(InstallSourceKey, installSource);
         }
 
         //초기 설정(필수)
@@ -118,15 +183,15 @@ namespace Truesoft.Analytics
         //userId : 플레이어ID
         //appVersion : 앱 버전 (실제 버전과 다르더라도 업데이트마다 증가해야 함)
         //platform : 접속 플랫폼 (Platform 클래스 사용, 추가할 플랫폼이 있다면 담당자 문의)
+        //store : 앱을 설치한 스토어 (Store 클래스 사용, 추가할 스토어가 있다면 담당자 문의)
         //server : 접속 서버 (Server 클래스 사용, 추가할 서버가 있다면 담당자 문의)
-        public static void InitGame(string projectId, string userId, int appVersion, string platform, string server)
+        public static void InitGame(string projectId, string userId, int appVersion, string server)
         {
             if (EventStorage.TestLog) projectId = TestProject;
             
             ProjectName = projectId;
             UserID = GetID(projectId, userId);
             Version = $"{appVersion:0}";
-            Platform = platform;
             Server = server;
         }
         
@@ -162,7 +227,7 @@ namespace Truesoft.Analytics
                 active_time = TimeToString(startedAt),
                 is_closed = false.ToString(),
                 app_version = Version,
-                platform = Platform,
+                platform = RunPlatform,
             };
             
             EventStorage.StartStorage();
@@ -183,7 +248,7 @@ namespace Truesoft.Analytics
                 created_at = TimeToString(createdAt),
                 server = Server,
                 ad_campaign = PlayerPrefs.GetString(CampaignKey, null),
-                install_source = PlayerPrefs.GetString(InstallSourceKey, null)
+                install_source = InstallStore
             };
 
             EventStorage.Enqueue(JsonUtility.ToJson(data), Path.User);
@@ -223,7 +288,7 @@ namespace Truesoft.Analytics
                 active_time = TimeToString(endAt),
                 is_closed = true.ToString(),
                 app_version = Version,
-                platform = Platform,
+                platform = RunPlatform,
             };
             
             EventStorage.StartStorage();
@@ -233,8 +298,32 @@ namespace Truesoft.Analytics
         }
 
         //결제 이벤트
-        //productName : 상품 ID (추후 LookerStudio에 등록)
-        public static void SendPaymentEvent(string productName)
+        //기타 스토어 영수증 검증은 담당자 문의 바랍니다.
+        //productName : 상품 이름 (추후 LookerStudio에 등록)
+        //receipt : 상품 영수증 (영수증 검증용) e.purchasedProduct.receipt
+        public static void SendPaymentEvent(string productName, string receipt)
+        {
+            var wrapper = JsonUtility.FromJson<UnityReceiptWrapper>(receipt);
+
+            if (wrapper.Store == "GooglePlay")
+            {
+                var payload = JsonUtility.FromJson<GooglePayload>(wrapper.Payload);
+                var inner = JsonUtility.FromJson<GoogleInnerJson>(payload.json);
+
+                SendGooglePaymentEvent(productName, inner.productId, inner.purchaseToken, inner.packageName);
+            }
+            else if (wrapper.Store == "AppleAppStore")
+            {
+                SendApplePaymentEvent(productName, wrapper.Payload);
+            }
+        }
+        
+        //플레이 스토어 결제
+        //productName : 상품 이름 (추후 LookerStudio에 등록)
+        //productId : 상품 ID (영수증 검증용, 예: com.some.thing.inapp1) purchasedProduct.definition.storeSpecificId
+        //purchaseToken : 결제 토큰 (영수증 검증용)
+        //packageName : 앱 패키지 이름 (영수증 검증용, 예: com.some.thing)
+        private static void SendGooglePaymentEvent(string productName, string productId, string purchaseToken, string packageName)
         {
             DateTime eventTime = CurrentTime();
             string eventID = GetEventID(SessionID, productName, eventTime);
@@ -244,12 +333,39 @@ namespace Truesoft.Analytics
                 event_id = eventID,
                 session_id = SessionID,
                 user_id = UserID,
-                product_id = productName,
-                event_time = TimeToString(eventTime)
+                product_name = productName,
+                event_time = TimeToString(eventTime),
+                store = Store.GooglePlay,
+                product_id = productId,
+                purchase_token = purchaseToken,
+                package_name = packageName,
             };
+            
             EventStorage.Enqueue(JsonUtility.ToJson(data), Path.Payment);
-        }       
+        }         
         
+        //앱스토어 결제
+        //productName : 상품 이름 (추후 LookerStudio에 등록)
+        //receipt : 상품 영수증 (영수증 검증용)
+        private static void SendApplePaymentEvent(string productName, string payload)
+        {
+            DateTime eventTime = CurrentTime();
+            string eventID = GetEventID(SessionID, productName, eventTime);
+
+            var data = new EventStorage.PaymentsPayload
+            {
+                event_id = eventID,
+                session_id = SessionID,
+                user_id = UserID,
+                product_name = productName,
+                event_time = TimeToString(eventTime),
+                store = Store.AppStore,
+                receipt_data = payload,
+            };
+            
+            EventStorage.Enqueue(JsonUtility.ToJson(data), Path.Payment);
+        }
+
         //광고 이벤트
         //adId : 광고 이름 (광고 위치에 따라 정하기) (예를들어 무료다이아 광고의 경우 free_dia)
         public static void SendAdEvent(string adId)
@@ -399,7 +515,6 @@ namespace Truesoft.Analytics
         public const string Android = "android";
         public const string IOS = "ios";
         public const string Windows = "windows";
-        public const string Mac = "mac";
     }
 
     //서버코드
@@ -412,7 +527,7 @@ namespace Truesoft.Analytics
     }
 
     //설치 스토어
-    public static class InstallSource
+    public static class Store
     {
         //정보 없음
         public const string None = "none";
@@ -454,5 +569,28 @@ namespace Truesoft.Analytics
             this.key = key;
             this.value = value;
         }
+    }
+    
+    [Serializable]
+    public class UnityReceiptWrapper
+    {
+        public string Store;
+        public string TransactionID;
+        public string Payload;
+    }
+
+    [Serializable]
+    public class GooglePayload
+    {
+        public string json;
+        public string signature;
+    }
+
+    [Serializable]
+    public class GoogleInnerJson
+    {
+        public string productId;
+        public string purchaseToken;
+        public string packageName;
     }
 }

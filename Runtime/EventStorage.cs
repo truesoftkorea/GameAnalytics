@@ -335,7 +335,13 @@ namespace Truesoft.Analytics
             public string session_id;
             public string user_id;
             public string event_time;
+            public string product_name;
+            public string store;
+
             public string product_id;
+            public string package_name;
+            public string purchase_token;
+            public string receipt_data;
         }    
         
         [Serializable]
