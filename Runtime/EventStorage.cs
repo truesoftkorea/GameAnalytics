@@ -17,12 +17,12 @@ namespace Truesoft.Analytics
         private const int MaxStoredEvents = 500;
 
         private static bool _isSending;
+        private static bool _isInit;
         private static bool _isSession;
-        public static bool IsEnd;
         public static bool TestLog;
         public static string CloudRunBaseUrl;
 
-        private static float _updateTime;
+        public static float UpdateTime;
         private const float UpdateMaxTime = 600f;
 
         private void Awake()
@@ -34,25 +34,30 @@ namespace Truesoft.Analytics
             }
 
             _instance = this;
-            _updateTime = UpdateMaxTime;
             DontDestroyOnLoad(gameObject);
         }
 
         public static void StartStorage()
         {
             _isSession = true;
-            _instance.LoadFromDisk();
-            _instance.TrySend();
+            UpdateTime = UpdateMaxTime;
+            
+            if (!_isInit)
+            {
+                _isInit = true;
+                _instance.LoadFromDisk();
+                _instance.TrySend();
+            }
         }
 
         private void Update()
         {
-            if (!IsEnd && _isSession)
+            if (_isSession)
             {
-                _updateTime -= Time.deltaTime;
-                if (_updateTime <= 0 && !_isSending)
+                UpdateTime -= Time.deltaTime;
+                if (UpdateTime <= 0 && !_isSending)
                 {
-                    _updateTime = UpdateMaxTime;
+                    UpdateTime = UpdateMaxTime;
                     var payload = new UpdatePayload
                     {
                         session_id = GameEvent.SessionID,
@@ -65,7 +70,7 @@ namespace Truesoft.Analytics
 
         public static void Enqueue(string data, string path, bool isCritical = true, bool isSafe = true)
         {
-            if (IsEnd || !_isSession) return;
+            if (!_isSession) return;
 
             var wrapper = new EventWrapper(new EventData(path, data, isSafe, isCritical));
             MemoryQueue.Enqueue(wrapper);
@@ -96,7 +101,6 @@ namespace Truesoft.Analytics
 
         private void TrySend()
         {
-            if (IsEnd) return;
             StartCoroutine(SendLoop());
         }
 
@@ -105,7 +109,7 @@ namespace Truesoft.Analytics
             if (_isSending) yield break;
 
             _isSending = true;
-            while (!IsEnd && MemoryQueue.Count > 0)
+            while (MemoryQueue.Count > 0)
             {
                 yield return StartCoroutine(QueueToServer());
             }
@@ -148,7 +152,7 @@ namespace Truesoft.Analytics
                 if (TestLog) Debug.Log($"{env.eventPath} : {request.result}");
                 
                 MemoryQueue.Dequeue();
-                _updateTime = UpdateMaxTime;
+                UpdateTime = UpdateMaxTime;
                 SaveToDisk();
             }
             else
@@ -232,7 +236,9 @@ namespace Truesoft.Analytics
         private static IEnumerator CloseFlow_Cor(Action onComplete)
         {
             yield return new WaitWhile(() => _isSending);
-            IsEnd = true;
+            
+            _isSession = false;
+
             onComplete?.Invoke();
         }
 

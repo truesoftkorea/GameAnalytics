@@ -47,13 +47,7 @@ namespace Truesoft.Analytics
             EventStorage.CloudRunBaseUrl = cloudRunBaseUrl;
             EventStorage.TestLog = testMode;
         }
-
-        //이벤트 수집 종료
-        public static void CloseEvent()
-        {
-            EventStorage.IsEnd = true;
-        }
-
+        
         //서버시간 불러오는 함수 (필수, 시간대 정보 포함)
         //SetUpdateTime(() => Cloud.ServerTime)
         public static void SetUpdateTime(Func<DateTime> getter)
@@ -412,6 +406,12 @@ namespace Truesoft.Analytics
             };
             
             EventStorage.Enqueue(JsonUtility.ToJson(data), Path.Event, false);
+        }
+
+        //일시정지 복구 (현재 시간 정보가 업데이트 된 후 호출해야 함)
+        public static void OnUnpauseGame()
+        {
+            EventStorage.UpdateTime = 0;
         }
         
         private static string GetID(string projectId, string playerId, int hashLength = 8)
