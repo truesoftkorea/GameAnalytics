@@ -27,14 +27,14 @@ namespace Truesoft.Analytics
 
         private void Awake()
         {
-            if (_instance != null)
+            if (_instance == null)
             {
-                Destroy(_instance);
-                return;
+                _instance = this;
             }
-
-            _instance = this;
-            DontDestroyOnLoad(gameObject);
+            else
+            {
+                Destroy(this);
+            }
         }
 
         public static void StartStorage()
@@ -46,7 +46,7 @@ namespace Truesoft.Analytics
             {
                 _isInit = true;
                 _instance.LoadFromDisk();
-                _instance.TrySend();
+                TrySend();
             }
         }
 
@@ -75,7 +75,7 @@ namespace Truesoft.Analytics
             var wrapper = new EventWrapper(new EventData(path, data, isSafe, isCritical));
             MemoryQueue.Enqueue(wrapper);
             SaveToDisk();
-            _instance.TrySend();
+            TrySend();
         }
 
         private static void SaveToDisk()
@@ -99,9 +99,9 @@ namespace Truesoft.Analytics
             }
         }
 
-        private void TrySend()
+        private static void TrySend()
         {
-            StartCoroutine(SendLoop());
+            _instance.StartCoroutine(_instance.SendLoop());
         }
 
         private IEnumerator SendLoop()
