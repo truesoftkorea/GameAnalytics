@@ -204,6 +204,20 @@ namespace Truesoft.Analytics
             
             EventStorage.Enqueue(JsonUtility.ToJson(data), Path.UserDelete);
             CloseSession();
+        }        
+        
+        //탈퇴 취소 요청 (탈퇴 예약 종료)
+        public static void DeleteCancelUser()
+        {
+            DateTime requestedAt = CurrentTime();
+
+            var data = new EventStorage.DeletePayload
+            {
+                user_id = UserID,
+                event_time = TimeToString(requestedAt),
+            };
+            
+            EventStorage.Enqueue(JsonUtility.ToJson(data), Path.UserDeleteCancel);
         }
 
         //세션 시작 (로그인)
@@ -549,6 +563,7 @@ namespace Truesoft.Analytics
     {
         public const string User = "/collect/user";
         public const string UserDelete = "/collect/user_delete";
+        public const string UserDeleteCancel = "/collect/user_delete_cancel";
         public const string Session = "/collect/session";
         public const string CloseSession = "/collect/close_session";
         public const string Payment = "/collect/payment";
