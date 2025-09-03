@@ -42,10 +42,9 @@ namespace Truesoft.Analytics
         //환경 설정
         //cloudRunBaseUrl : 이벤트를 전송할 URL
         //testMode : 테스트 모드 여부
-        public static void Configure(string cloudRunBaseUrl, bool testMode)
+        public static void Configure(string cloudRunBaseUrl)
         {
             EventStorage.CloudRunBaseUrl = cloudRunBaseUrl;
-            EventStorage.TestLog = testMode;
         }
         
         //서버시간 불러오는 함수 (필수, 시간대 정보 포함)
@@ -135,7 +134,7 @@ namespace Truesoft.Analytics
 
                     var adCampaign = queryParams.ContainsKey("utm_campaign") ? queryParams["utm_campaign"] : null;
                 
-                    if (EventStorage.TestLog) Debug.Log($"ReferrerString : {referrerString}");
+                    Debug.Log($"ReferrerString : {referrerString}");
                     InitAdInfo(adCampaign);
                 });
             }
@@ -180,8 +179,10 @@ namespace Truesoft.Analytics
         //platform : 접속 플랫폼 (Platform 클래스 사용, 추가할 플랫폼이 있다면 담당자 문의)
         //store : 앱을 설치한 스토어 (Store 클래스 사용, 추가할 스토어가 있다면 담당자 문의)
         //server : 접속 서버 (Server 클래스 사용, 추가할 서버가 있다면 담당자 문의)
-        public static void InitGame(string projectId, string userId, int appVersion, string server)
+        public static void InitGame(string projectId, string userId, int appVersion, string server, bool testMode)
         {
+            EventStorage.TestLog = testMode;
+
             if (EventStorage.TestLog) projectId = TestProject;
             
             ProjectName = projectId;

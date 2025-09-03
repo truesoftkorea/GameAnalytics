@@ -30,10 +30,9 @@ BigQuery 기반의 분석 및 Looker Studio 시각화를 지원하는 경량 SDK
 
 앱 실행 시 환경 정보를 설정합니다.
 
-`GameEvent.Configure("https://***", true);`
+`GameEvent.Configure("https://***");`
 
 - cloudRunBaseUrl : 이벤트를 전송할 URL (담당자에게 문의)
-- testMode : 테스트 모드 여부
 
 ## 설치 정보 설정
 
@@ -54,12 +53,13 @@ BigQuery 기반의 분석 및 Looker Studio 시각화를 지원하는 경량 SDK
 
 로그인 완료 시 이후 전송할 정보를 설정합니다.
 
-`GameEvent.InitGame("mygame_live", "user_001", 101, Server.Korea);`
+`GameEvent.InitGame("mygame_live", "user_001", 101, Server.Korea, true);`
 
 - projectId : 고유 프로젝트 이름 (테스트 : `GameEvent.TestProject`)
 - userId : 유저 ID (게임 서버에서 할당 받은 고유ID)
 - appVersion : 앱 빌드 버전 (업데이트마다 증가)
 - server : (글로벌 게임인 경우 유저 그룹 구분, Server 클래스 사용)
+- testMode : 테스트 모드 여부
 
 ## 현재 시각 연동
 
@@ -188,7 +188,7 @@ DB에 유저가 접속 종료했음을 알리는 로그를 전송합니다.
 
 ### 1. 게임 실행  
 
-`GameEvent.Configure("https://***", true);`  
+`GameEvent.Configure("https://***");`  
 `GameEvent.InitInstallInfo();`
 
 ### 2. 서버 연결
@@ -198,7 +198,7 @@ DB에 유저가 접속 종료했음을 알리는 로그를 전송합니다.
 
 ### 3. 로그인
 
-`GameEvent.InitGame(GameEvent.TestProject, "testUser0", 1, Server.Korea);`  
+`GameEvent.InitGame(GameEvent.TestProject, "testUser0", 1, Server.Korea, true);`  
 `GameEvent.StartSession();`
 
 ### 4. 게임 진행
@@ -212,6 +212,10 @@ DB에 유저가 접속 종료했음을 알리는 로그를 전송합니다.
 `GameEvent.CloseSession(() => Application.Quit());`
 or 
 `GameEvent.DeleteUser(TimeSpan.Zero);`
+
+### 6. 기타
+
+`GameEvent.DeleteCancelUser();`
 
 ## 문의 및 기여
 
