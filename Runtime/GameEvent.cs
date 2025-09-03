@@ -135,6 +135,7 @@ namespace Truesoft.Analytics
 
                     var adCampaign = queryParams.ContainsKey("utm_campaign") ? queryParams["utm_campaign"] : null;
                 
+                    if (EventStorage.TestLog) Debug.Log($"ReferrerString : {referrerString}");
                     InitAdInfo(adCampaign);
                 });
             }
@@ -259,8 +260,9 @@ namespace Truesoft.Analytics
                 install_source = InstallStore
             };
 
+            if (EventStorage.TestLog) Debug.Log($"Campaign : {PlayerPrefs.GetString(CampaignKey, null)}");
             EventStorage.Enqueue(JsonUtility.ToJson(data), Path.User);
-        }     
+        }
 
         //세션 종료 (게임 종료, 선택사항)
         //정확한 종료 타이밍 수집을 위한 기능, 실패해도 큰 리스크 없음
