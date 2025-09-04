@@ -37,7 +37,7 @@ namespace Truesoft.Analytics
         private static Func<string> _getQueueData;
         private static Action<string> _setQueueData;
 
-        private const string TestProject = "test_game";
+        private const string TestProject = "test_project";
 
         //환경 설정
         //cloudRunBaseUrl : 이벤트를 전송할 URL
