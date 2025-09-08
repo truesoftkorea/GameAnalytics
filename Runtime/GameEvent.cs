@@ -143,7 +143,7 @@ namespace Truesoft.Analytics
         //앱스토어 전용 설치정보 설정(필수)
         private static void InitIOSInfo()
         {
-            RunPlatform = Platform.Android;
+            RunPlatform = Platform.IOS;
             InstallStore = Store.AppStore;
 
             if (!string.IsNullOrEmpty(Application.absoluteURL))
