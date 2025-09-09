@@ -4,6 +4,6 @@ using UnityEngine;
 public class AnalyticsSdkConfig : ScriptableObject
 {
     [Header("Android Only")]
-    public bool enableInstallReferrer = true;
-    public bool verboseLogging = false;
+    //public bool enableInstallReferrer = true;
+    public bool debugMode = false;
 }

@@ -80,10 +80,15 @@ namespace Truesoft.Analytics
         {
             RunPlatform = Platform.Android;
             InstallStore = Store.None;
-
+            
 #if UNITY_ANDROID && !UNITY_EDITOR
             try
             {
+                if (AnalyticsConfigLoader.TryLoad(out var config))
+                {
+                    InstallReferrerBridge.Initialize(config.debugMode);
+                }
+
                 using (var buildVersion = new AndroidJavaClass("android.os.Build$VERSION"))
                 {
                     int sdkInt = buildVersion.GetStatic<int>("SDK_INT");
@@ -122,21 +127,35 @@ namespace Truesoft.Analytics
             {
                 Debug.LogWarning("GetInstallSource() failed: " + e.Message);
             }
+#else
+            if (AnalyticsConfigLoader.TryLoad(out var config))
+            {
+                if (config.debugMode) Debug.Log("[Analytics] InstallReferrer not available on this platform.");
+            }
 #endif
             
             //Install Referrer 호출
             if (InstallStore == Store.GooglePlay)
             {
-                PlayInstallReferrer.GetInstallReferrerInfo(details =>
+                InstallReferrerBridge.RequestReferrer(info =>
                 {
-                    string referrerString = details.InstallReferrer; // ex: utm_source=google&utm_campaign=UA01
-                    Dictionary<string, string> queryParams = ParseQueryString(referrerString);
+                    if (info == null) 
+                    {
+                        Debug.LogWarning("InstallReferrer not available.");
+                        return;
+                    }
+
+                    // 예: GameEvent에 반영
+                    // referrer 쿼리 파싱하여 utm_campaign 추출 후 저장
+                    string refStr = info.installReferrer; // "utm_source=google&utm_campaign=UA01" 등
+                    Debug.Log($"Referrer: {refStr}");
+                    
+                    Dictionary<string, string> queryParams = ParseQueryString(refStr);
 
                     var adCampaign = queryParams.ContainsKey("utm_campaign") ? queryParams["utm_campaign"] : null;
                 
-                    Debug.Log($"ReferrerString : {referrerString}");
                     InitAdInfo(adCampaign);
-                });
+                }, verbose: config.debugMode);
             }
         }
 

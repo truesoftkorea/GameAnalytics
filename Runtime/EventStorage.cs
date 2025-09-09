@@ -34,25 +34,6 @@ namespace Truesoft.Analytics
             {
                 Destroy(this);
             }
-
-            if (AnalyticsConfigLoader.TryLoad(out var config))
-            {
-//#if UNITY_ANDROID && !UNITY_EDITOR
-                if (config.enableInstallReferrer)
-                {
-                    //InstallReferrerBridge.Initialize(config.verboseLogging);
-                }
-                else if (config.verboseLogging)
-                {
-                    Debug.Log("[Analytics] InstallReferrer disabled by config.");
-                }
-//#else
-                if (config.verboseLogging)
-                {
-                    Debug.Log("[Analytics] InstallReferrer not available on this platform.");
-                }
-//#endif
-            }
         }
 
         public static void StartStorage()
