@@ -18,6 +18,7 @@ namespace Truesoft.Analytics
         private static bool _isSending;
         private static bool _isInit;
         private static bool _isSession;
+        public static bool IsEnd;
         public static bool TestLog;
         public static string CloudRunBaseUrl;
 
@@ -51,7 +52,7 @@ namespace Truesoft.Analytics
 
         private void Update()
         {
-            if (_isSession)
+            if (!IsEnd && _isSession)
             {
                 UpdateTime -= Time.deltaTime;
                 if (UpdateTime <= 0 && !_isSending)
@@ -69,7 +70,7 @@ namespace Truesoft.Analytics
 
         public static void Enqueue(string data, string path, bool isCritical = true, bool isSafe = true)
         {
-            if (!_isSession) return;
+            if (IsEnd || !_isSession) return;
 
             var wrapper = new EventWrapper(new EventData(path, data, isSafe, isCritical));
             MemoryQueue.Enqueue(wrapper);
@@ -100,6 +101,8 @@ namespace Truesoft.Analytics
 
         private static void TrySend()
         {
+            if (IsEnd) return;
+            
             _instance.StartCoroutine(_instance.SendLoop());
         }
 
@@ -108,7 +111,7 @@ namespace Truesoft.Analytics
             if (_isSending) yield break;
 
             _isSending = true;
-            while (MemoryQueue.Count > 0)
+            while (!IsEnd && MemoryQueue.Count > 0)
             {
                 yield return StartCoroutine(QueueToServer());
             }
@@ -137,7 +140,7 @@ namespace Truesoft.Analytics
             catch (Exception e)
             {
                 if (TestLog) Debug.LogError(e);
-                MemoryQueue.Dequeue(); // malformed → 제거
+                MemoryQueue.Dequeue();
                 SaveToDisk();
                 yield break;
             }
@@ -236,6 +239,7 @@ namespace Truesoft.Analytics
         {
             yield return new WaitWhile(() => _isSending);
             
+            IsEnd = true;
             _isSession = false;
 
             onComplete?.Invoke();

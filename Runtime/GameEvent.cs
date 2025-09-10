@@ -47,6 +47,12 @@ namespace Truesoft.Analytics
             EventStorage.CloudRunBaseUrl = cloudRunBaseUrl;
         }
         
+        //이벤트 수집 종료
+        public static void CloseEvent()
+        {
+            EventStorage.IsEnd = true;
+        }
+        
         //서버시간 불러오는 함수 (필수, 시간대 정보 포함)
         //SetUpdateTime(() => Cloud.ServerTime)
         public static void SetUpdateTime(Func<DateTime> getter)
