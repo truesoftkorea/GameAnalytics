@@ -73,6 +73,15 @@ BigQuery 기반의 분석 및 Looker Studio 시각화를 지원하는 경량 SDK
 
 - getter : 프로젝트에서 실제로 사용하는 현재시각 getter (UTC 정보 필수)
 
+## 게임 복귀 후 현재 시각 재연동
+
+게임을 일시정지한 경우 현재시각 정보가 틀어질 수 있어 재연동이 필요합니다.
+* 일시정지가 해제된 후 우선 각 게임의 현재시각을 연동합니다.
+* 연동이 완료되면 `OnUnpauseGame`을 통해 세션 유지용 이벤트를 전송합니다.
+
+`TimeManager.serverTime = DataTime.Now;`  
+`GameEvent.OnUnpauseGame();`
+
 ## 미 전송 로그 서버 연동
 
 갑작스러운 종료 또는 오류로 인해 로그가 전송되지 않은 경우를 대비해 미 전송 로그를 서버에 저장합니다.

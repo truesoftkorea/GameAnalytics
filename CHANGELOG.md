@@ -51,4 +51,7 @@
 ## [1.2.0] - 2025-09-09
 ### InstallReferrer 충돌오류 수정
 - InstallReferrer를 사용하는 다른 SDK와 충돌하는 현상이 개선됩니다.
-- 이제 InstallReferrer를 포함하는 자체 라이브러리를 사용합니다. 
+- 이제 InstallReferrer를 포함하는 자체 라이브러리를 사용합니다.
+### CloseEvent 복구
+- CloseEvent 기능이 돌아왔습니다.
+- 이슈로 인해 지표 수집을 종료하려는 경우 CloseEvent를 호출해 모든 수집을 차단할 수 있습니다.
