@@ -86,11 +86,11 @@ namespace Truesoft.Analytics
         {
             RunPlatform = Platform.Android;
             InstallStore = Store.None;
-            
+            AnalyticsSdkConfig config = null;
 #if UNITY_ANDROID && !UNITY_EDITOR
             try
             {
-                if (AnalyticsConfigLoader.TryLoad(out var config))
+                if (AnalyticsConfigLoader.TryLoad(out config))
                 {
                     InstallReferrerBridge.Initialize(config.debugMode);
                 }
@@ -134,7 +134,7 @@ namespace Truesoft.Analytics
                 Debug.LogWarning("GetInstallSource() failed: " + e.Message);
             }
 #else
-            if (AnalyticsConfigLoader.TryLoad(out var config))
+            if (AnalyticsConfigLoader.TryLoad(out config))
             {
                 if (config.debugMode) Debug.Log("[Analytics] InstallReferrer not available on this platform.");
             }
@@ -161,7 +161,7 @@ namespace Truesoft.Analytics
                     var adCampaign = queryParams.ContainsKey("utm_campaign") ? queryParams["utm_campaign"] : null;
                 
                     InitAdInfo(adCampaign);
-                }, verbose: config.debugMode);
+                }, verbose: config != null && config.debugMode);
             }
         }
 
