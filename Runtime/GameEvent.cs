@@ -564,7 +564,8 @@ namespace Truesoft.Analytics
     public static class Server
     {
         public const string Korea = "Korea";
-        public const string Global = "Global";
+        public const string Japan = "Global";
+        public const string Global = "Global1";
         public const string China = "China";
     }
 
